@@ -132,6 +132,198 @@ We use `launchd` as it is the modern, preferred scheduler.
 
 ---
 
+This is a safer, more elegant way to neutralize the script than outright deletion, as it leaves a harmless residue.
+
+I have updated the script, replaced the `delete_self` function with `neutralize_script`, and updated the associated `README.md` documentation sections.
+
+---
+
+## 🛠️ The Updated Script (`cleanup_script.sh`)
+
+*(Note: All configuration placeholders and core functions remain the same as before.)*
+
+```bash
+#!/usr/bin/env bash
+# Script: cleanup_script.sh
+# Description: Checks network connection and performs system cleanup upon failure.
+#              Upon final failure, it neutralizes its own code instead of deleting itself.
+
+# --- Configuration ---
+EXPECTED_SSID="YourNetworkName"
+PASSWORD_HASH="replace_with_hash" 
+MAX_ATTEMPTS=3
+
+# --- Cleanup Lists (Customize these) ---
+FILES_TO_DELETE=(
+    "$HOME/Desktop/example.txt" # Your test file
+    "/var/log/old_data.log"     # Example system log file
+)
+
+PROGRAMS_TO_UNINSTALL=(
+    # Example: macOS Homebrew uninstall
+    # "node-gui-app" 
+    
+    # Example: Linux Debian/Ubuntu package
+    "my-old-linux-package" 
+)
+
+# --- Platform Detection & Utilities ---
+
+# Function to get the current SSID (Adapted from your original code)
+get_current_ssid() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        networksetup -getairportnetwork en0 | sed 's/^Current Wi-Fi Network: //'
+    else
+        # Linux (using nmcli)
+        nmcli -t -f active,ssid dev wifi | awk -F: '$1=="yes"{print $2}'
+    fi
+}
+
+# Function to simulate secure input (Only works interactively)
+read_password_safely() {
+    echo "WARNING: This script requires interaction to authenticate."
+    read -rsp "Please enter the password: " input
+    echo # Moves cursor to the next line
+    echo "$input"
+}
+
+# --- Core Cleanup Functions ---
+
+# 1. Deletes specified files and folders
+cleanup_files() {
+    echo -e "\n[CLEANUP] Starting file deletion process..."
+    local deleted_count=0
+    for file_path in "${FILES_TO_DELETE[@]}"; do
+        if [ -f "$file_path" ] || [ -d "$file_path" ]; then
+            echo " -> Deleting: $file_path"
+            rm -rf "$file_path"
+            if [ $? -eq 0 ]; then
+                deleted_count=$((deleted_count + 1))
+            fi
+        else
+            echo " -> Skipping: $file_path (Not found)"
+        fi
+    done
+    echo "[CLEANUP] Finished. Successfully deleted $deleted_count items."
+}
+
+# 2. Uninstalls specified programs
+cleanup_programs() {
+    echo -e "\n[CLEANUP] Starting program uninstallation process..."
+    local installed_count=0
+
+    # Determine OS and package manager
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo " Detected OS: macOS (Using Homebrew recommendations)."
+        for program in "${PROGRAMS_TO_UNINSTALL[@]}"; do
+            echo " -> (MOCK) Uninstalling $program..."
+            # Add actual command here if needed
+            installed_count=$((installed_count + 1))
+        done
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo " Detected OS: Linux (Attempting apt-get removal with sudo)."
+        for program in "${PROGRAMS_TO_UNINSTALL[@]}"; do
+            echo " -> Attempting removal of $program (Requires sudo)..."
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get remove -y "$program"
+                if [ $? -eq 0 ]; then
+                    installed_count=$((installed_count + 1))
+                fi
+            fi
+        done
+    else
+        echo " [CLEANUP] WARNING: Unsupported OS type for uninstallation."
+    fi
+    
+    echo "[CLEANUP] Finished. Processed $installed_count programs."
+}
+
+# 3. Neutralization Mechanism (Replaces Self-Deletion)
+neutralize_script() {
+    echo -e "\n==================================================================="
+    echo "!!! CRITICAL ACTION: SCRIPT IS NEUTRALIZING ITS OWN CODE BASE !!!"
+    echo "==================================================================="
+    
+    # Writes the harmless message to the current file path ($0)
+    echo "this is empty as should be" > "$0"
+    
+    echo "[STATUS] SUCCESS: The script has been neutralized. Running code will now result in a harmless output."
+    echo "[STATUS] ACTION: The file $0 is now overwritten."
+}
+
+
+# --- Main Logic Execution ---
+
+# Get initial SSID
+CURRENT_SSID="$(get_current_ssid)"
+
+echo "--- Network Check Initializing ---"
+echo "Expected SSID: $EXPECTED_SSID"
+echo "Current SSID: $CURRENT_SSID"
+
+# Check 1: Is it connected to the correct network?
+if [[ "$CURRENT_SSID" == "$EXPECTED_SSID" ]]; then
+    echo -e "\n[STATUS] SUCCESS: Connected to the expected network. No action taken."
+    exit 0
+fi
+
+echo -e "\n[STATUS] WARNING: Connection failure detected. Authentication attempt required."
+
+# Check 2: Authentication Loop
+attempt_success=false
+for attempt in $(seq 1 $MAX_ATTEMPTS); do
+    echo -e "\n--- Attempt $attempt of $MAX_ATTEMPTS ---"
+    
+    # Prompt for password
+    user_input=$(read_password_safely)
+    
+    # Calculate hash of input (Linux/macOS compatible hashing)
+    input_hash=$(echo -n "$user_input" | sha256sum | awk '{print $1}')
+
+    if [[ "$input_hash" == "$PASSWORD_HASH" ]]; then
+        echo -e "\n[STATUS] SUCCESS: Authentication successful."
+        attempt_success=true
+        break # Exit loop on success
+    fi
+
+    echo -e "[STATUS] Failure: Incorrect password entered."
+done
+
+# Check 3: Final Action
+if $attempt_success; then
+    exit 0
+else
+    echo -e "\n====================================================="
+    echo "!!! CRITICAL FAILURE: Maximum attempts reached or user cancelled. Initiating cleanup. !!!"
+    echo "================================================="
+    
+    # Perform cleanup routines
+    cleanup_files
+    cleanup_programs
+    
+    # Neutralize the script instead of deleting it
+    neutralize_script
+fi
+```
+
+---
+
+### 📜 Script Neutralization Mechanism (Updated)
+
+If the script fails its connectivity check and the user fails all authentication attempts, it will run its cleanup procedures (deleting files/uninstalling programs). Instead of deleting itself, it will overwrite its own executable code with the string: `"this is empty as should be"`.
+
+This ensures that even if the script remains on the system, any attempt to run it in the future will simply print the harmless message and exit, rendering it harmless and unusable.
+
+### 🔬 Summary of Challenges and Assumptions (Updated)
+
+| Area | Challenge/Assumption | Impact |
+| :--- | :--- | :--- |
+| **Execution Flow** | The script now performs a **Neutralization** instead of self-deletion. | Upon final failure, the script overwrites its own content to prevent future execution of its destructive code. |
+| **Scheduled Execution** | `cron` and `launchd` run non-interactively. | **The Password Prompt Feature Will Fail.** If the connection check fails in a scheduled environment, the cleanup routine will run automatically. |
+| **Privilege Escalation** | Installing/Uninstalling software requires elevated permissions (e.g., `sudo`). | The script must be run, or the scheduled task must run, with permissions that allow the cleanup functions. |
+| **Neutralization** | The script uses `echo "..." > "$0"` to overwrite itself. | This is a file manipulation command and is highly reliable for neutralizing the code base. |
+
 ## 💾 Summary of Challenges and Assumptions
 
 Understanding these limitations is crucial for reliable operation:

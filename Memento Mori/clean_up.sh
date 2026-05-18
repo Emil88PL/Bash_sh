@@ -4,7 +4,7 @@
 #              Upon final failure, it neutralizes its own code instead of deleting itself.
 
 # --- Configuration ---
-EXPECTED_SSID="Not Work network name"
+EXPECTED_SSID="G5Power300%"
 # NOTE: For testing, setting this to a non-matching hash will always force cleanup.
 # If you use a real password, you MUST use a proper hash generation process outside of this script.
 PASSWORD_HASH="03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
@@ -136,7 +136,7 @@ cleanup_programs() {
 neutralize_script() {
     echo -e "\n==================================================================="
     echo "!!! CRITICAL ACTION: SCRIPT IS NEUTRALIZING ITS OWN CODE BASE !!!"
-    echo "====================================================="
+    echo "==================================================================="
 
     # Writes the harmless message to the current file path ($0)
     echo "this is empty as should be" > "$0"

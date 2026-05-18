@@ -13,7 +13,8 @@ MAX_ATTEMPTS=3
 # --- Cleanup Lists (Customize these) ---
 FILES_TO_DELETE=(
     "$HOME/Desktop/example.txt" # Your test file
-    "/var/log/old_data.log"     # Example system log file
+    "/home/emil/Videos/videosTest/example.txt"     # Example system log file
+    "/home/emil/Videos/videosTest/example2.log"     # Example system log file
 )
 
 PROGRAMS_TO_UNINSTALL=(

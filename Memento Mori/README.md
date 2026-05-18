@@ -106,16 +106,20 @@ We use `launchd` as it is the modern, preferred scheduler.
         <string>com.user.cleanup</string>
         <key>ProgramArguments</key>
         <array>
-            /bin/bash
-            /path/to/cleanup_script.sh 
+            <string>/usr/bin/open</string>
+            <string>-a</string>
+            <string>Terminal</string>
+            <string>/path/to/cleanup_script.sh</string>
         </array>
         <key>StartCalendarInterval</key>
         <dict>
-            <hour>11</hour>
-            <minute>11</minute>
+            <key>Hour</key>
+            <integer>11</integer>
+            <key>Minute</key>
+            <integer>11</integer>
         </dict>
         <key>RunAtLoad</key>
-        <true/>
+        <false/>
     </dict>
     </plist>
     ```
@@ -133,7 +137,7 @@ We use `launchd` as it is the modern, preferred scheduler.
     ```
 2.  **Add the Entry:** Add the following line to run the script every day at 11:11. We redirect all output (`>> /tmp/cleanup_log.log 2>&1`) so you can check if it ran successfully.
     ```cron
-    11 11 * * * /bin/bash /path/to/cleanup_script.sh >> /tmp/cleanup_log.log 2>&1
+    11 11 * * * DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus alacritty -e /path/to/cleanup_script.sh >> /tmp/cleanup_log.log 2>&1
     ```
 
 ---

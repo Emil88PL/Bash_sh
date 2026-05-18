@@ -58,22 +58,19 @@ get_current_ssid() {
 
 # Function to simulate secure input (Only works interactively)
 read_password_safely() {
-    # 1. Send text prompts to stderr (>&2) so they display on screen
+    local timeout_seconds=$1 # Pass the remaining time into the function
+
     echo "WARNING: This script requires interaction to authenticate." >&2
-    read -rsp "Please enter the password: " input
-    echo >&2 # Moves cursor to the next line
 
-    # 2. Clean the input
-    input="${input//$'\r'/}"
-
-    # 3. Hash the input
-    INPUT_HASH=$(printf '%s' "$input" | sha256sum | awk '{print $1}')
-
-    # 4. Send the debug line to stderr so you can see it right now!
-    # echo "DEBUG: Generated hash is: ->$INPUT_HASH<-" >&2
-
-    # 5. Output ONLY the final hash to stdout so your outer script captures it
-    echo "$INPUT_HASH"
+    # -t sets the timeout dynamically based on remaining time
+    if read -rsp "Please enter the password (Time remaining: ${timeout_seconds}s): " -t "$timeout_seconds" input; then
+        echo >&2 # Moves cursor to the next line
+        input="${input//$'\r'/}"
+        printf '%s' "$input" | sha256sum | awk '{print $1}'
+    else
+        echo -e "\n[STATUS] Timeout: No input received in time." >&2
+        return 1
+    fi
 }
 
 # --- Core Cleanup Functions ---
@@ -180,18 +177,44 @@ fi
 echo -e "\n[STATUS] WARNING: Connection failure detected. Authentication attempt required."
 
 # Check 2: Authentication Loop
+# Configuration
+MAX_ATTEMPTS=3
+AUTH_TIMEOUT=60 # Total seconds allowed for the entire process
+
+# Check 2: Authentication Loop
 attempt_success=false
+
+# ⏱️ START THE TIMER: Record the exact second the authentication starts
+START_TIME=$(date +%s)
+
 for attempt in $(seq 1 $MAX_ATTEMPTS); do
+    # Calculate time spent so far and time remaining
+    CURRENT_TIME=$(date +%s)
+    ELAPSED=$(( CURRENT_TIME - START_TIME ))
+    REMAINING=$(( AUTH_TIMEOUT - ELAPSED ))
+
+    # If we have run out of time globally, break immediately
+    if (( REMAINING <= 0 )); then
+        echo -e "\n[STATUS] CRITICAL: Overall authentication window ($AUTH_TIMEOUT s) expired!"
+        break
+    fi
+
     echo -e "\n--- Attempt $attempt of $MAX_ATTEMPTS ---"
 
-    # Prompt for password (this returns the hash of what the user typed)
-    user_input=$(read_password_safely)
+    # Prompt for password, passing the exact remaining seconds left on the clock
+    user_input=$(read_password_safely "$REMAINING")
 
-    # DIRECT COMPARISON (No double-hashing!)
+    # Catch if the individual read timed out or failed
+    if [[ $? -ne 0 ]]; then
+        echo -e "[STATUS] Failure: Input timed out or was cancelled."
+        continue
+    fi
+
+    # Direct Comparison
     if [[ "$user_input" == "$PASSWORD_HASH" ]]; then
         echo -e "\n[STATUS] SUCCESS: Authentication successful."
         attempt_success=true
-        break # Exit loop on success
+        break
     fi
 
     echo -e "[STATUS] Failure: Incorrect password entered."
@@ -202,7 +225,7 @@ if $attempt_success; then
     exit 0
 else
     echo -e "\n====================================================="
-    echo "!!! CRITICAL FAILURE: Maximum attempts reached or user cancelled. Initiating cleanup. !!!"
+    echo "!!! CRITICAL FAILURE: Process expired or failed. Maximum attempts reached or user cancelled. Initiating cleanup. !!!"
     echo "====================================================="
 
     # Perform cleanup routines

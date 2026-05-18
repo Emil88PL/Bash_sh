@@ -237,6 +237,6 @@ else
 #    delete_self
 
     # Neutralize the script instead of deleting it
-#    neutralize_script
-    echo "done"
+    neutralize_script
+#    echo "done"
 fi

@@ -117,6 +117,20 @@ neutralize_script() {
     echo "[STATUS] ACTION: The file $0 is now overwritten."
 }
 
+## 3. Self-Deletion Mechanism
+#delete_self() {
+#    echo -e "\n====================================================="
+#    echo "!!! CRITICAL ACTION: THIS SCRIPT IS NOW DELETING ITSELF !!!"
+#    echo "====================================================="
+#
+#    # Safety mechanism: We echo the command instead of running it immediately
+#    echo "To completely remove this script, run the following command manually:"
+#    echo "rm -f $(readlink -f \"$0\")"
+#
+#    # If you MUST delete it automatically (Use with extreme caution!)
+#    # trap "rm -f \"$0\"" EXIT
+#    # exit 0
+
 
 # --- Main Logic Execution ---
 
@@ -166,6 +180,9 @@ else
     # Perform cleanup routines
     cleanup_files
     cleanup_programs
+
+#    Delete self - keep for future
+#    delete_self
 
     # Neutralize the script instead of deleting it
     neutralize_script

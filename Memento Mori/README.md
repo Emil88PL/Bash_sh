@@ -70,7 +70,7 @@ Open your terminal and run:
 ```bash
 chmod +x ./cleanup_script.sh
 ```
-
+![img.png](img.png)
 ### Step 2: Manual Test (Interactive Run)
 
 Run the script directly from the terminal. This is the only way to properly test the password prompt feature.

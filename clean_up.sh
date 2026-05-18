@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Script: cleanup_script.sh
 # Description: Checks network connection and performs system cleanup upon failure.
+#              Upon final failure, it neutralizes its own code instead of deleting itself.
 
 # --- Configuration ---
 EXPECTED_SSID="YourNetworkName"
@@ -11,16 +12,15 @@ MAX_ATTEMPTS=3
 
 # --- Cleanup Lists (Customize these) ---
 FILES_TO_DELETE=(
-    "$HOME/Desktop/example.txt"  # Your test file
+    "$HOME/Desktop/example.txt" # Your test file
     "/var/log/old_data.log"     # Example system log file
 )
 
 PROGRAMS_TO_UNINSTALL=(
     # macOS Example (using Homebrew):
     # "node-gui-app"
-    # "some-old-library"
-    
-    # Linux Example (Ubuntu/Debian - requires sudo):
+
+    # Example: Linux Debian/Ubuntu package
     "my-old-linux-package"
 )
 
@@ -100,23 +100,21 @@ cleanup_programs() {
     else
         echo " [CLEANUP] WARNING: Unsupported OS type for uninstallation."
     fi
-    
+
     echo "[CLEANUP] Finished. Processed $installed_count programs."
 }
 
-# 3. Self-Deletion Mechanism
-delete_self() {
-    echo -e "\n====================================================="
-    echo "!!! CRITICAL ACTION: THIS SCRIPT IS NOW DELETING ITSELF !!!"
-    echo "====================================================="
-    
-    # Safety mechanism: We echo the command instead of running it immediately
-    echo "To completely remove this script, run the following command manually:"
-    echo "rm -f $(readlink -f \"$0\")"
-    
-    # If you MUST delete it automatically (Use with extreme caution!)
-    # trap "rm -f \"$0\"" EXIT
-    # exit 0
+# 3. Neutralization Mechanism (Replaces Self-Deletion)
+neutralize_script() {
+    echo -e "\n==================================================================="
+    echo "!!! CRITICAL ACTION: SCRIPT IS NEUTRALIZING ITS OWN CODE BASE !!!"
+    echo "==================================================================="
+
+    # Writes the harmless message to the current file path ($0)
+    echo "this is empty as should be" > "$0"
+
+    echo "[STATUS] SUCCESS: The script has been neutralized. Running code will now result in a harmless output."
+    echo "[STATUS] ACTION: The file $0 is now overwritten."
 }
 
 
@@ -141,10 +139,10 @@ echo -e "\n[STATUS] WARNING: Connection failure detected. Authentication attempt
 attempt_success=false
 for attempt in $(seq 1 $MAX_ATTEMPTS); do
     echo -e "\n--- Attempt $attempt of $MAX_ATTEMPTS ---"
-    
+
     # Prompt for password
     user_input=$(read_password_safely)
-    
+
     # Calculate hash of input (Linux/macOS compatible hashing)
     input_hash=$(echo -n "$user_input" | sha256sum | awk '{print $1}')
 
@@ -163,12 +161,12 @@ if $attempt_success; then
 else
     echo -e "\n====================================================="
     echo "!!! CRITICAL FAILURE: Maximum attempts reached or user cancelled. Initiating cleanup. !!!"
-    echo "====================================================="
-    
+    echo "================================================="
+
     # Perform cleanup routines
     cleanup_files
     cleanup_programs
-    
-    # Delete self
-    delete_self
+
+    # Neutralize the script instead of deleting it
+    neutralize_script
 fi

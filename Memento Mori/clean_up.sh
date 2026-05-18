@@ -4,10 +4,10 @@
 #              Upon final failure, it neutralizes its own code instead of deleting itself.
 
 # --- Configuration ---
-EXPECTED_SSID="YourNetworkName"
+EXPECTED_SSID="G5Power300%"
 # NOTE: For testing, setting this to a non-matching hash will always force cleanup.
 # If you use a real password, you MUST use a proper hash generation process outside of this script.
-PASSWORD_HASH="replace_with_hash" 
+PASSWORD_HASH="1234"
 MAX_ATTEMPTS=3
 
 # --- Cleanup Lists (Customize these) ---
@@ -33,8 +33,26 @@ get_current_ssid() {
         # We assume en0 is the primary Wi-Fi adapter
         networksetup -getairportnetwork en0 | sed 's/^Current Wi-Fi Network: //'
     else
-        # Linux (using nmcli)
-        nmcli -t -f active,ssid dev wifi | awk -F: '$1=="yes"{print $2}'
+        # Linux (Arch-friendly & robust)
+
+        # 1. Try NetworkManager if it's installed and actively running
+        if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManager; then
+            nmcli -t -f TYPE,NAME connection show --active | grep '^802-11-wireless:' | cut -d: -f2-
+
+        # 2. Fallback to querying the kernel via 'iw' (works for iwd, wpa_supplicant, etc.)
+        elif command -v iw >/dev/null 2>&1; then
+            for dev in $(iw dev | awk '/Interface/ {print $2}'); do
+                ssid=$(iw dev "$dev" link | sed -n 's/^\s*SSID:\s*//p')
+                if [[ -n "$ssid" ]]; then
+                    echo "$ssid"
+                    return 0
+                fi
+            done
+
+        # 3. Last resort fallback to older wireless-tools
+        elif command -v iwgetid >/dev/null 2>&1; then
+            iwgetid -r
+        fi
     fi
 }
 
@@ -185,5 +203,6 @@ else
 #    delete_self
 
     # Neutralize the script instead of deleting it
-    neutralize_script
+#    neutralize_script
+    echo "done"
 fi

@@ -4,10 +4,10 @@
 #              Upon final failure, it neutralizes its own code instead of deleting itself.
 
 # --- Configuration ---
-EXPECTED_SSID="G5Power300%"
+EXPECTED_SSID="Not Work network name"
 # NOTE: For testing, setting this to a non-matching hash will always force cleanup.
 # If you use a real password, you MUST use a proper hash generation process outside of this script.
-PASSWORD_HASH="1234"
+PASSWORD_HASH="03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
 MAX_ATTEMPTS=3
 
 # --- Cleanup Lists (Customize these) ---
@@ -58,10 +58,22 @@ get_current_ssid() {
 
 # Function to simulate secure input (Only works interactively)
 read_password_safely() {
-    echo "WARNING: This script requires interaction to authenticate."
+    # 1. Send text prompts to stderr (>&2) so they display on screen
+    echo "WARNING: This script requires interaction to authenticate." >&2
     read -rsp "Please enter the password: " input
-    echo # Moves cursor to the next line
-    echo "$input"
+    echo >&2 # Moves cursor to the next line
+
+    # 2. Clean the input
+    input="${input//$'\r'/}"
+
+    # 3. Hash the input
+    INPUT_HASH=$(printf '%s' "$input" | sha256sum | awk '{print $1}')
+
+    # 4. Send the debug line to stderr so you can see it right now!
+    echo "DEBUG: Generated hash is: ->$INPUT_HASH<-" >&2
+
+    # 5. Output ONLY the final hash to stdout so your outer script captures it
+    echo "$INPUT_HASH"
 }
 
 # --- Core Cleanup Functions ---
@@ -126,7 +138,7 @@ cleanup_programs() {
 neutralize_script() {
     echo -e "\n==================================================================="
     echo "!!! CRITICAL ACTION: SCRIPT IS NEUTRALIZING ITS OWN CODE BASE !!!"
-    echo "==================================================================="
+    echo "====================================================="
 
     # Writes the harmless message to the current file path ($0)
     echo "this is empty as should be" > "$0"
@@ -172,13 +184,11 @@ attempt_success=false
 for attempt in $(seq 1 $MAX_ATTEMPTS); do
     echo -e "\n--- Attempt $attempt of $MAX_ATTEMPTS ---"
 
-    # Prompt for password
+    # Prompt for password (this returns the hash of what the user typed)
     user_input=$(read_password_safely)
 
-    # Calculate hash of input (Linux/macOS compatible hashing)
-    input_hash=$(echo -n "$user_input" | sha256sum | awk '{print $1}')
-
-    if [[ "$input_hash" == "$PASSWORD_HASH" ]]; then
+    # DIRECT COMPARISON (No double-hashing!)
+    if [[ "$user_input" == "$PASSWORD_HASH" ]]; then
         echo -e "\n[STATUS] SUCCESS: Authentication successful."
         attempt_success=true
         break # Exit loop on success
@@ -193,7 +203,7 @@ if $attempt_success; then
 else
     echo -e "\n====================================================="
     echo "!!! CRITICAL FAILURE: Maximum attempts reached or user cancelled. Initiating cleanup. !!!"
-    echo "================================================="
+    echo "====================================================="
 
     # Perform cleanup routines
     cleanup_files

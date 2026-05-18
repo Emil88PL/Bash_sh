@@ -71,6 +71,12 @@ Open your terminal and run:
 chmod +x ./cleanup_script.sh
 ```
 ![img.png](img.png)
+
+### Step 1.5: Create Hash of your password
+
+```bash
+echo -n "your_password" | sha256sum | awk '{print $1}'
+```
 ### Step 2: Manual Test (Interactive Run)
 
 Run the script directly from the terminal. This is the only way to properly test the password prompt feature.

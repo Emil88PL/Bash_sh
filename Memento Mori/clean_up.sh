@@ -70,7 +70,7 @@ read_password_safely() {
     INPUT_HASH=$(printf '%s' "$input" | sha256sum | awk '{print $1}')
 
     # 4. Send the debug line to stderr so you can see it right now!
-    echo "DEBUG: Generated hash is: ->$INPUT_HASH<-" >&2
+    # echo "DEBUG: Generated hash is: ->$INPUT_HASH<-" >&2
 
     # 5. Output ONLY the final hash to stdout so your outer script captures it
     echo "$INPUT_HASH"

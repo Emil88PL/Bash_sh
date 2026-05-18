@@ -23,6 +23,10 @@ PROGRAMS_TO_UNINSTALL=(
 
     # Example: Linux Debian/Ubuntu package
     "my-old-linux-package"
+#    "zen-browser"
+#    "google-chrome"
+#    "ollama"
+#    "openCode"
 )
 
 # --- Platform Detection & Utilities ---
@@ -101,28 +105,89 @@ cleanup_programs() {
 
     # Determine OS and package manager
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo " Detected OS: macOS (Using Homebrew recommendations)."
+        echo " Detected OS: macOS (Using Homebrew & Manual App Bundle checks)."
         for program in "${PROGRAMS_TO_UNINSTALL[@]}"; do
-            # Add macOS-specific package manager calls here (e.g., brew uninstall)
-            # Example: brew uninstall "$program"
-            echo " -> (MOCK) Uninstalling $program..."
-            # Add actual command here if needed
-            installed_count=$((installed_count + 1))
-        done
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        echo " Detected OS: Linux (Attempting apt-get removal with sudo)."
-        
-        # Use a case structure for robust cross-distribution support
-        for program in "${PROGRAMS_TO_UNINSTALL[@]}"; do
-            echo " -> Attempting removal of $program (Requires sudo)..."
-            # WARNING: This requires running the script with elevated permissions 
-            # or having 'sudo' configured for non-password entry.
-            if command -v apt-get &> /dev/null; then
-                sudo apt-get remove -y "$program"
-                if [ $? -eq 0 ]; then
-                    installed_count=$((installed_count + 1))
+            local removed=false
+
+            # 1. Try Homebrew first
+            if command -v brew &> /dev/null; then
+                if brew list --cask "$program" &> /dev/null || brew list "$program" &> /dev/null; then
+                    echo " -> Uninstalling $program via Homebrew..."
+                    brew uninstall --zap "$program"
+                    removed=true
                 fi
-            # Add other distro checks here (dnf, yum, pacman)
+            fi
+
+            # 2. Manual fallback for standard Mac Applications
+            if [ "$removed" = false ]; then
+                formatted_app_name=""
+                [[ "$program" == "google-chrome" ]] && formatted_app_name="Google Chrome.app"
+                [[ "$program" == "zen-browser" ]] && formatted_app_name="Zen Browser.app"
+                [[ "$program" == "ollama" ]] && formatted_app_name="Ollama.app"
+
+                if [[ -n "$formatted_app_name" && -d "/Applications/$formatted_app_name" ]]; then
+                    echo " -> Removing $formatted_app_name from Applications..."
+                    rm -rf "/Applications/$formatted_app_name"
+                    rm -rf "$HOME/Library/Application Support/${formatted_app_name%.*}"
+                    removed=true
+                fi
+            fi
+
+            if [ "$removed" = true ]; then
+                installed_count=$((installed_count + 1))
+            fi
+        done
+
+    elif [[ "$OSTYPE" == "linux-gnu"* || "$OSTYPE" == "linux"* ]]; then
+        echo " Detected OS: Linux (Detecting package manager)..."
+
+        for program in "${PROGRAMS_TO_UNINSTALL[@]}"; do
+            local removed=false
+
+            # --- ARCH LINUX CHECK (pacman) ---
+            if command -v pacman &> /dev/null; then
+                actual_pkg="$program"
+                # Check for AUR binary variance (e.g. zen-browser vs zen-browser-bin)
+                if ! pacman -Qi "$program" &> /dev/null && pacman -Qi "${program}-bin" &> /dev/null; then
+                    actual_pkg="${program}-bin"
+                fi
+
+                if pacman -Qi "$actual_pkg" &> /dev/null; then
+                    echo " -> Removing $actual_pkg via pacman (Requires sudo)..."
+                    sudo pacman -Rns --noconfirm "$actual_pkg"
+                    removed=true
+                fi
+
+            # --- DEBIAN/UBUNTU CHECK (apt-get) ---
+            elif command -v apt-get &> /dev/null; then
+                # Quick validation to see if apt actually has it installed
+                if dpkg -s "$program" &> /dev/null; then
+                    echo " -> Removing $program via apt-get (Requires sudo)..."
+                    sudo apt-get purge -y "$program"
+                    sudo apt-get autoremove -y
+                    removed=true
+                fi
+            fi
+
+            # --- SPECIAL MANUAL CLEANUP FOR OLLAMA (If installed via curl script) ---
+            if [ "$program" == "ollama" ] && command -v ollama &> /dev/null; then
+                echo " -> Detecting manual Ollama install. Purging system files..."
+                sudo systemctl stop ollama &> /dev/null || true
+                sudo systemctl disable ollama &> /dev/null || true
+                sudo rm -f $(which ollama)
+                sudo rm -rf /usr/share/ollama
+                removed=true
+            fi
+
+            # --- APPS CONFIG & CACHE PURGE (Linux) ---
+            if [ "$removed" = true ]; then
+                installed_count=$((installed_count + 1))
+                # Delete lingering configuration folders
+                [[ "$program" == "google-chrome" ]] && rm -rf "$HOME/.config/google-chrome"
+                [[ "$program" == "zen-browser" ]] && rm -rf "$HOME/.config/zen" "$HOME/.zen"
+                [[ "$program" == "ollama" ]] && rm -rf "$HOME/.ollama"
+            else
+                echo " -> $program was not found or is already uninstalled."
             fi
         done
     else
